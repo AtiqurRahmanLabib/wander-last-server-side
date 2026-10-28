@@ -22,6 +22,7 @@ export async function connectToMongoDB() {
 const mondoClient = await connectToMongoDB();
 const db = mondoClient.db("wanderlast");
 const destinationCollention = db.collection("destination");
+const bookingCollention = db.collection("Booking");
 
 app.get("/add-destination", (req, res) => {
   res.send("Add destination API is working!");
@@ -65,6 +66,20 @@ app.delete("/destination/:id", async (req, res) => {
   const result = await destinationCollention.deleteOne({
     _id: new ObjectId(id),
   });
+  res.send(result);
+});
+
+app.post("/booking", async (req, res) => {
+  const data = req.body;
+  console.log(data);
+  const result = await bookingCollention.insertOne(data);
+  console.log(result);
+  res.send(result);
+});
+
+app.get("/my-booking/:email", async (req, res) => {
+  const { email } = req.params;
+  const result = await bookingCollention.find({ email: email }).toArray();
   res.send(result);
 });
 
