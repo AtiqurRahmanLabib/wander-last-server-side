@@ -2,6 +2,7 @@ import express from "express";
 import { MongoClient, ObjectId } from "mongodb";
 import "dotenv/config";
 import cors from "cors";
+import { createRemoteJWKSet, jwtVerify } from "jose";
 
 const app = express();
 app.use(cors());
@@ -24,11 +25,54 @@ const db = mondoClient.db("wanderlast");
 const destinationCollention = db.collection("destination");
 const bookingCollention = db.collection("Booking");
 
-app.get("/add-destination", (req, res) => {
-  res.send("Add destination API is working!");
-});
+const verifyUser = async (req, res, next) => {
+  console.log("Middleware executed!");
 
-app.post("/add-destination", async (req, res) => {
+  const authentication = req.headers.authorization;
+
+  console.log("Auth Header:", authentication);
+
+  if (!authentication) {
+    console.log("No token found!");
+
+    return res.status(401).json({
+      message: "Unauthorized",
+    });
+  }
+
+  const [scheme, token] = authentication.split(" ");
+
+  if (scheme !== "Bearer" || !token) {
+    console.log("Invalid token format!");
+
+    return res.status(401).json({
+      message: "Invalid authorization format",
+    });
+  }
+
+  try {
+    const JWKS = createRemoteJWKSet(
+      new URL(`${process.env.BASE_URL}/api/auth/jwks`),
+    );
+
+    const { payload } = await jwtVerify(token, JWKS);
+
+    console.log("JWT Verified Successfully!");
+    console.log("User:", payload);
+
+    req.user = payload;
+
+    next();
+  } catch (error) {
+    console.error("JWT Verification Failed:", error);
+
+    return res.status(401).json({
+      message: "Invalid or expired token",
+    });
+  }
+};
+
+app.post("/add-destination", verifyUser, async (req, res) => {
   const data = req.body;
   const result = await destinationCollention.insertOne(data);
   console.log(result);
@@ -43,7 +87,13 @@ app.get("/destinations", async (req, res) => {
   const result = await destinationCollention.find().toArray();
   res.send(result);
 });
-app.get("/destination/:id", async (req, res) => {
+
+app.get("/featured-destination", async (req, res) => {
+  const result = await destinationCollention.find().limit(5).toArray();
+  res.send(result);
+});
+
+app.get("/destination/:id", verifyUser, async (req, res) => {
   const { id } = req.params;
   console.log(id);
   const result = await destinationCollention.findOne({ _id: new ObjectId(id) });
@@ -80,6 +130,12 @@ app.post("/booking", async (req, res) => {
 app.get("/my-booking/:email", async (req, res) => {
   const { email } = req.params;
   const result = await bookingCollention.find({ email: email }).toArray();
+  res.send(result);
+});
+
+app.delete("/my-booking/:id", async (req, res) => {
+  const { id } = req.params;
+  const result = await bookingCollention.deleteOne({ _id: new ObjectId(id) });
   res.send(result);
 });
 
