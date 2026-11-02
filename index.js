@@ -52,7 +52,7 @@ const verifyUser = async (req, res, next) => {
 
   try {
     const JWKS = createRemoteJWKSet(
-      new URL(`${process.env.BASE_URL}/api/auth/jwks`),
+      new URL(`${process.env.CLIENT_BASE_URL}/api/auth/jwks`),
     );
 
     const { payload } = await jwtVerify(token, JWKS);
@@ -142,3 +142,5 @@ app.delete("/my-booking/:id", async (req, res) => {
 app.listen(port, () => {
   console.log(`Example app listening on port ${port}`);
 });
+
+export default app;
